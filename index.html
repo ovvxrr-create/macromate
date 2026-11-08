@@ -134,7 +134,7 @@ body{background:radial-gradient(ellipse 130% 430px at 50% -180px,rgba(132,56,221
         if(seen.has(key)||seen.has(name))return false;
         seen.add(key);seen.add(name);return true;
       }).sort((x,y)=>{
-        const score=f=>{let n=f.name.toLowerCase();return (n===lower?100:n.startsWith(lower)?50:n.includes(lower)?20:0)+(f.name===f.name.normalize('NFKD').replace(/[^\\x00-\\x7F]/g,'')?5:0)};
+        const score=f=>{let n=f.name.toLowerCase();return (n===lower?100:n.startsWith(lower)?50:n.includes(lower)?20:0)};
         return score(y)-score(x)
       });
       pickerFoods=[...local,...online].slice(0,100);
