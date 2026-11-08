@@ -1,15 +1,44 @@
 package com.macromate.tracker;
 import android.app.Activity;
 import android.os.Bundle;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
-import android.webkit.WebChromeClient;
-import android.webkit.WebSettings;
-import android.view.View;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.net.Uri;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.*;
+import android.text.InputType;
+import org.json.*;
+import java.net.*;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.Executors;
+
 public class MainActivity extends Activity {
- private WebView web;
- @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(Color.rgb(12,11,23));getWindow().setNavigationBarColor(Color.rgb(12,11,23));web=new WebView(this);setContentView(web);web.setBackgroundColor(Color.rgb(12,11,23));WebSettings s=web.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setAllowFileAccess(false);s.setAllowContentAccess(false);web.setWebViewClient(new WebViewClient());web.setWebChromeClient(new WebChromeClient());web.loadUrl("https://macromate-sable.vercel.app/");}
- @Override public void onBackPressed(){if(web.canGoBack())web.goBack();else super.onBackPressed();}
- @Override protected void onDestroy(){web.destroy();super.onDestroy();}
+ final String BASE="https://eltccumtmczukzilsdvo.supabase.co",KEY="sb_publishable_InNmI8zaEx0l9OG41AXrsQ_bGhc71I1";
+ SharedPreferences prefs; LinearLayout root,content; TextView title; String meal="Lunch",email="",token="";
+ int purple=Color.rgb(167,80,243),white=Color.WHITE,muted=Color.rgb(185,174,204),surface=Color.rgb(31,26,44);
+ java.util.concurrent.ExecutorService io=Executors.newSingleThreadExecutor();
+ @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(Color.rgb(12,11,23));getWindow().setNavigationBarColor(Color.rgb(12,11,23));prefs=getSharedPreferences("macromate_native",MODE_PRIVATE);token=prefs.getString("token","");home();}
+ TextView text(String s,int size){TextView t=new TextView(this);t.setText(s);t.setTextColor(white);t.setTextSize(size);t.setPadding(12,12,12,12);return t;}
+ LinearLayout column(){LinearLayout l=new LinearLayout(this);l.setOrientation(1);l.setPadding(20,16,20,16);return l;}
+ void page(String heading){root=column();root.setBackgroundColor(Color.rgb(12,11,23));ScrollView sc=new ScrollView(this);sc.setFillViewport(true);sc.addView(root);setContentView(sc);TextView brand=text("✦  MacroMate",24);brand.setTextColor(Color.rgb(203,131,255));brand.setTypeface(null,Typeface.BOLD);root.addView(brand);title=text(heading,23);root.addView(title);content=column();root.addView(content);}
+ void line(String s){TextView t=text(s,16);t.setBackgroundColor(surface);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,5,0,5);content.addView(t,p);}
+ void button(String s,Runnable click){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setTextColor(white);b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(purple));content.addView(b);b.setOnClickListener(v->click.run());}
+ EditText input(String hint,boolean numeric){EditText e=new EditText(this);e.setSingleLine(true);e.setHint(hint);e.setHintTextColor(muted);e.setTextColor(white);if(numeric)e.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);content.addView(e);return e;}
+ double value(String k){return Double.longBitsToDouble(prefs.getLong(k,Double.doubleToLongBits(0)));}
+ void set(String k,double n){prefs.edit().putLong(k,Double.doubleToLongBits(n)).apply();}
+ String day(){return new java.text.SimpleDateFormat("yyyy-MM-dd",java.util.Locale.US).format(new java.util.Date());}
+ String key(String k){return day()+"_"+k;}
+ void home(){page("Your daily dashboard");double cal=value(key("cal"));line("✦  "+Math.round(cal)+" kcal eaten today");line("🥩 Protein  "+Math.round(value(key("protein")))+" g");line("🍞 Carbs  "+Math.round(value(key("carbs")))+" g");line("🥑 Fat  "+Math.round(value(key("fat")))+" g");line("💧 Water  "+Math.round(value(key("water")))+" ml");button("🍴 Add Food",()->foods());button("💧 +250 ml",()->{set(key("water"),value(key("water"))+250);home();});button("📈 Progress",()->progress());button("👤 Account",()->account());line("Core tracking works offline. Your data stays on this device unless you export it.");}
+ void foods(){page("Add food");line("Choose a food and enter grams. Nutrition is approximate per 100 g.");String[] names={"Chicken breast cooked","White rice cooked","Egg whole","Oats dry","Banana","Apple","Salmon cooked","Milk whole","Potato boiled","Bread white","Greek yogurt","Tuna canned","Almonds","Olive oil","Lentils cooked","Dates"};double[][] v={{165,31,0,3.6},{130,2.7,28.2,.3},{143,12.6,.7,9.5},{389,16.9,66.3,6.9},{89,1.1,22.8,.3},{52,.3,13.8,.2},{206,22.1,0,12.4},{61,3.2,4.8,3.3},{87,1.9,20.1,.1},{265,9,49,3.2},{97,9,3.9,5},{116,25.5,0,.8},{579,21.2,21.6,49.9},{884,0,0,100},{116,9,20,.4},{282,2.5,75,.4}};for(int i=0;i<names.length;i++){final int n=i;button(names[i]+" · "+(int)v[i][0]+" kcal/100g",()->add(names[n],v[n]));}button("✎ Describe custom food",()->custom());button("← Dashboard",()->home());}
+ void add(String name,double[] vals){page(name);EditText grams=input("Amount in grams (e.g. 150)",true);button("Log food",()->{try{double amount=Double.parseDouble(grams.getText().toString())/100;if(amount<=0||amount>100)return;String[] fields={"cal","protein","carbs","fat"};for(int i=0;i<4;i++)set(key(fields[i]),value(key(fields[i]))+vals[i]*amount);Toast.makeText(this,"Food saved",Toast.LENGTH_SHORT).show();home();}catch(Exception e){Toast.makeText(this,"Enter valid grams",Toast.LENGTH_SHORT).show();}});}
+ void custom(){page("Describe your food");EditText name=input("Description (e.g. homemade chicken wrap)",false),kcal=input("Calories",true),p=input("Protein grams",true),c=input("Carbs grams",true),f=input("Fat grams",true);button("Save custom food",()->{try{if(name.getText().length()==0)return;EditText[] es={kcal,p,c,f};String[] fields={"cal","protein","carbs","fat"};for(int i=0;i<4;i++){double n=Double.parseDouble(es[i].getText().toString());if(n<0||n>20000)throw new Exception();set(key(fields[i]),value(key(fields[i]))+n);}home();}catch(Exception e){Toast.makeText(this,"Enter valid nutrition values",Toast.LENGTH_SHORT).show();}});}
+ void progress(){page("Progress");line("Today's calories: "+Math.round(value(key("cal"))));line("Today's water: "+Math.round(value(key("water")))+" ml");EditText weight=input("Weight (kg)",true);button("Save weight",()->{try{set("weight",Double.parseDouble(weight.getText().toString()));progress();}catch(Exception e){}});line("Latest weight: "+Math.round(value("weight"))+" kg");button("← Dashboard",()->home());}
+ void account(){page("Your account");line(token.isEmpty()?"Not signed in — tracking works without an account.":"Signed in. Email: "+prefs.getString("email",""));if(!token.isEmpty()){button("Sign out",()->{prefs.edit().remove("token").apply();token="";account();});return;}EditText mail=input("Email address",false);mail.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);button("Send email sign-in code",()->{email=mail.getText().toString().trim();if(!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()){Toast.makeText(this,"Enter valid email",Toast.LENGTH_SHORT).show();return;}JSONObject data=new JSONObject();try{data.put("email",email);data.put("create_user",true);}catch(Exception ignored){}request("/auth/v1/otp",data,null,()->verify());});button("Continue with Google (setup required)",()->{String url=BASE+"/auth/v1/authorize?provider=google&redirect_to="+Uri.encode("macromate://auth");startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));});button("← Dashboard",()->home());}
+ void verify(){page("Verify your email");line("Enter the email verification code sent to "+email);EditText code=input("Verification code",false);button("Verify and sign in",()->{JSONObject d=new JSONObject();try{d.put("email",email);d.put("token",code.getText().toString().trim());d.put("type","email");}catch(Exception ignored){}request("/auth/v1/verify",d,null,()->account());});}
+ void request(String path,JSONObject body,String bearer,Runnable success){io.execute(()->{try{HttpURLConnection c=(HttpURLConnection)new URL(BASE+path).openConnection();c.setRequestMethod("POST");c.setRequestProperty("apikey",KEY);c.setRequestProperty("Content-Type","application/json");if(bearer!=null)c.setRequestProperty("Authorization","Bearer "+bearer);c.setDoOutput(true);c.getOutputStream().write(body.toString().getBytes(StandardCharsets.UTF_8));int status=c.getResponseCode();InputStream in=status<300?c.getInputStream():c.getErrorStream();ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buf=new byte[4096];int n;while((n=in.read(buf))!=-1)out.write(buf,0,n);JSONObject response=new JSONObject(out.toString("UTF-8"));runOnUiThread(()->{if(status>=200&&status<300){String access=response.optString("access_token","");if(!access.isEmpty()){token=access;prefs.edit().putString("token",token).putString("email",email).apply();}success.run();}else Toast.makeText(this,response.optString("msg",response.optString("message","Authentication error")),Toast.LENGTH_LONG).show();});}catch(Exception ex){runOnUiThread(()->Toast.makeText(this,"Connection unavailable. Try again online.",Toast.LENGTH_LONG).show());}});}
+ @Override public void onBackPressed(){home();}
 }
